@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>กรอบป้ายทะเบียน | SNR PARTTECH</title>
+<!--
+  ============================================================================
+  SNR PARTTECH – เครื่องมือออกแบบกรอบใส่โลโก้ (เฟส 1)
+  ----------------------------------------------------------------------------
+  วิธีรวมเข้ากับหน้าสินค้าเดิม (ไม่ต้องลบของเดิม):
+   1) คัดลอกบล็อก <style> ที่อยู่ระหว่าง  SNR DESIGNER CSS START / END  ไปไว้ใน <head>
+   2) ห่อ "ข้อมูลสินค้าเดิม" ด้วยโครงนี้:
+        <div class="snrd-layout snrd-scope">
+          <aside id="snr-designer"> ...เครื่องมือ (คัดลอกจากไฟล์นี้)... </aside>
+          <div class="snrd-product-info"> ...ข้อมูลสินค้าเดิมของคุณ (คงไว้ทั้งหมด)... </div>
+        </div>
+   3) คัดลอก <section id="snrd-quote"> (ฟอร์มขอใบเสนอราคา) ไปวางต่อท้าย
+   4) คัดลอก <script id="snrd-models"> และ <script> ของเครื่องมือ ไปไว้ก่อน </body>
+  ทุก class / id ขึ้นต้นด้วย snrd- จึงไม่ชนกับสไตล์เดิมของเว็บ
+  ============================================================================
+-->
+
+<!-- ===== SNR DESIGNER CSS START ===== -->
+<style>
+.snrd-scope{
+  --snrd-red:#E2001A;
+  --snrd-red-dark:#B80015;
+  --snrd-red-soft:#FDEBED;
+  --snrd-ink:#1A1A1A;
+  --snrd-muted:#5F6368;
+  --snrd-line:#E3E3E3;
+  --snrd-bg:#FFFFFF;
+  --snrd-bg-soft:#F6F6F6;
+  --snrd-radius:12px;
+  --snrd-gap:16px;
+  color:var(--snrd-ink);
+  font-family:inherit;
+}
+.snrd-scope *,.snrd-scope *::before,.snrd-scope *::after{box-sizing:border-box}
+
+/* ---------- Layout: desktop 1/3 + 2/3, mobile stacked ---------- */
+.snrd-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,2fr);
+  gap:32px;
+  align-items:start;
+  max-width:1280px;
+  margin:0 auto;
+  padding:24px 16px;
+}
+.snrd-product-info{min-width:0}
+@media (max-width:767.98px){
+  .snrd-layout{grid-template-columns:minmax(0,1fr);gap:24px;padding:16px}
+}
+
+/* ---------- Tool panel ---------- */
+#snr-designer{
+  background:var(--snrd-bg);
+  border:1px solid var(--snrd-line);
+  border-radius:var(--snrd-radius);
+  padding:18px;
+  display:flex;flex-direction:column;gap:var(--snrd-gap);
+  position:sticky;top:16px;
+}
+@media (max-width:767.98px){#snr-designer{position:static;padding:14px}}
+.snrd-title{margin:0;font-size:1.15rem;line-height:1.3;font-weight:700}
+.snrd-title span{color:var(--snrd-red)}
+.snrd-sub{margin:4px 0 0;font-size:.9rem;color:var(--snrd-muted)}
+.snrd-step{display:flex;flex-direction:column;gap:8px}
+.snrd-label{font-weight:600;font-size:.92rem;display:flex;align-items:center;gap:8px}
+.snrd-num{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:50%;
+  background:var(--snrd-red);color:#fff;font-size:.78rem;font-weight:700;flex:none;
+}
+.snrd-select,.snrd-input,.snrd-textarea{
+  width:100%;font:inherit;font-size:16px;color:var(--snrd-ink);
+  border:1px solid #CFCFCF;border-radius:8px;padding:10px 12px;background:#fff;min-height:44px;
+}
+.snrd-select:focus,.snrd-input:focus,.snrd-textarea:focus{outline:2px solid var(--snrd-red);outline-offset:1px;border-color:var(--snrd-red)}
+.snrd-textarea{min-height:96px;resize:vertical}
+
+.snrd-thumbs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.snrd-thumb{
+  flex:none;width:88px;border:2px solid var(--snrd-line);border-radius:8px;background:#fff;
+  padding:4px;cursor:pointer;font:inherit;font-size:.72rem;color:var(--snrd-ink);
+  display:flex;flex-direction:column;gap:4px;align-items:stretch;text-align:center;
+}
+.snrd-thumb canvas{width:100%;height:auto;display:block;border-radius:4px;background:#fff}
+.snrd-thumb[aria-pressed="true"]{border-color:var(--snrd-red);box-shadow:0 0 0 2px var(--snrd-red-soft)}
+.snrd-thumb:focus-visible{outline:2px solid var(--snrd-red);outline-offset:2px}
+
+.snrd-stage{
+  position:relative;border:1px solid var(--snrd-line);border-radius:10px;overflow:hidden;
+  background:repeating-conic-gradient(#F3F3F3 0% 25%,#FFFFFF 0% 50%) 50%/20px 20px;
+}
+#snrd-canvas{display:block;width:100%;height:auto;touch-action:auto;cursor:default}
+#snrd-canvas.snrd-has-logo{touch-action:none;cursor:grab}
+#snrd-canvas.snrd-dragging{cursor:grabbing}
+#snrd-canvas:focus-visible{outline:3px solid var(--snrd-red);outline-offset:-3px}
+.snrd-caption{margin:0;font-size:.8rem;color:var(--snrd-muted);line-height:1.45}
+
+.snrd-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:44px;padding:10px 16px;border-radius:8px;font:inherit;font-weight:600;font-size:.95rem;
+  cursor:pointer;border:1px solid transparent;text-decoration:none;line-height:1.2;text-align:center;
+  -webkit-tap-highlight-color:transparent;
+}
+.snrd-btn svg{width:18px;height:18px;flex:none}
+.snrd-btn-primary{background:var(--snrd-red);color:#fff}
+.snrd-btn-primary:hover{background:var(--snrd-red-dark)}
+.snrd-btn-outline{background:#fff;color:var(--snrd-red);border-color:var(--snrd-red)}
+.snrd-btn-outline:hover{background:var(--snrd-red-soft)}
+.snrd-btn-ghost{background:var(--snrd-bg-soft);color:var(--snrd-ink);border-color:var(--snrd-line)}
+.snrd-btn-ghost:hover{background:#ECECEC}
+.snrd-btn-line{background:#fff;color:var(--snrd-ink);border-color:#BDBDBD}
+.snrd-btn-line:hover{background:var(--snrd-bg-soft)}
+.snrd-btn[disabled]{opacity:.55;cursor:not-allowed}
+.snrd-btn:focus-visible{outline:2px solid var(--snrd-ink);outline-offset:2px}
+.snrd-block{width:100%}
+
+.snrd-upload input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.snrd-filename{font-size:.82rem;color:var(--snrd-muted);word-break:break-all}
+
+.snrd-controls{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center}
+.snrd-pad{display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px);gap:4px}
+.snrd-pad button{
+  width:44px;height:44px;border-radius:8px;border:1px solid var(--snrd-line);background:#fff;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;color:var(--snrd-ink);padding:0;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;
+}
+.snrd-pad button:hover{border-color:var(--snrd-red);color:var(--snrd-red)}
+.snrd-pad button:active{background:var(--snrd-red-soft)}
+.snrd-pad button svg{width:18px;height:18px}
+.snrd-pad .snrd-up{grid-area:1/2}.snrd-pad .snrd-left{grid-area:2/1}.snrd-pad .snrd-center{grid-area:2/2}
+.snrd-pad .snrd-right{grid-area:2/3}.snrd-pad .snrd-down{grid-area:3/2}
+.snrd-size{display:flex;flex-direction:column;gap:6px;min-width:0}
+.snrd-size-row{display:flex;justify-content:space-between;font-size:.85rem;color:var(--snrd-muted)}
+.snrd-range{width:100%;accent-color:var(--snrd-red);height:32px;margin:0;touch-action:pan-y}
+.snrd-controls[aria-disabled="true"]{opacity:.45;pointer-events:none}
+@media (max-width:360px){.snrd-controls{grid-template-columns:minmax(0,1fr)}}
+
+.snrd-alert{
+  border-radius:8px;padding:10px 12px;font-size:.88rem;line-height:1.45;
+  background:var(--snrd-red-soft);color:#8A0010;border:1px solid #F5B8C0;
+}
+.snrd-alert[hidden]{display:none}
+.snrd-note{background:#F4F6F8;color:#33373B;border:1px solid #DDE2E6}
+.snrd-actions{display:flex;flex-direction:column;gap:8px}
+.snrd-link{
+  background:none;border:0;padding:6px 0;font:inherit;font-size:.88rem;color:var(--snrd-red);
+  text-decoration:underline;text-underline-offset:3px;cursor:pointer;text-align:center;min-height:44px;
+}
+.snrd-link:hover{color:var(--snrd-red-dark)}
+
+/* ---------- Quote form ---------- */
+#snrd-quote{max-width:1280px;margin:0 auto;padding:8px 16px 48px;scroll-margin-top:16px}
+.snrd-card{background:#fff;border:1px solid var(--snrd-line);border-radius:var(--snrd-radius);padding:24px}
+@media (max-width:767.98px){.snrd-card{padding:16px}}
+.snrd-card h2{margin:0 0 4px;font-size:1.35rem}
+.snrd-card h2 span{color:var(--snrd-red)}
+.snrd-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;margin-top:16px}
+.snrd-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.snrd-field label,.snrd-field .snrd-flabel{font-size:.9rem;font-weight:600}
+.snrd-field .snrd-req{color:var(--snrd-red)}
+.snrd-full{grid-column:1/-1}
+@media (max-width:767.98px){.snrd-grid{grid-template-columns:minmax(0,1fr)}}
+.snrd-attach{
+  display:flex;gap:14px;align-items:center;border:1px dashed #CFCFCF;border-radius:10px;padding:12px;background:var(--snrd-bg-soft);
+}
+.snrd-attach img{width:160px;max-width:45%;height:auto;border-radius:6px;border:1px solid var(--snrd-line);background:#fff}
+.snrd-attach-text{font-size:.88rem;display:flex;flex-direction:column;gap:6px;min-width:0}
+.snrd-attach-ok{color:#1A1A1A;font-weight:600;display:flex;align-items:center;gap:6px}
+.snrd-attach-ok svg{width:18px;height:18px;color:var(--snrd-red);flex:none}
+.snrd-file-native{font-size:.85rem;max-width:100%}
+.snrd-send{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:20px}
+@media (max-width:520px){.snrd-send{grid-template-columns:minmax(0,1fr)}}
+.snrd-mode-team .snrd-only-design{display:none}
+.snrd-scope:not(.snrd-mode-team) .snrd-only-team{display:none}
+.snrd-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.snrd-status{margin-top:14px}
+.snrd-line-box{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.snrd-line-box[hidden]{display:none}
+.snrd-line-btns{display:flex;flex-wrap:wrap;gap:8px}
+</style>
+<!-- ===== SNR DESIGNER CSS END ===== -->
+
+<!-- สไตล์ของหน้าตัวอย่างนี้เท่านั้น (ไม่ต้องคัดลอก — หน้าจริงใช้สไตล์เดิมของเว็บ) -->
+<style>
+body{margin:0;font-family:"Prompt","Kanit","Sarabun",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:#FAFAFA;color:#1A1A1A}
+.demo-head{background:#fff;border-bottom:3px solid #E2001A;padding:14px 16px}
+.demo-head b{color:#E2001A}
+.demo-product{background:#fff;border:1px solid #E3E3E3;border-radius:12px;padding:24px}
+.demo-product h1{margin:0 0 8px;font-size:1.6rem}
+.demo-product .price{color:#E2001A;font-size:1.4rem;font-weight:700;margin:8px 0 16px}
+.demo-product ul{padding-left:20px;line-height:1.8}
+.demo-ph{border:2px dashed #E2001A;border-radius:8px;padding:12px;color:#8A0010;background:#FDEBED;font-size:.9rem;margin-bottom:16px}
+</style>
+</head>
+<body>
+
+<header class="demo-head"><b>SNR PARTTECH</b> · กรอบป้าย.com</header>
+
+<!-- ===== SNR DESIGNER LAYOUT START ===== -->
+<div class="snrd-layout snrd-scope">
+
+  <!-- ================= เครื่องมือออกแบบ (คอลัมน์ซ้าย 1/3) ================= -->
+  <aside id="snr-designer" aria-labelledby="snrd-heading">
+    <div>
+      <h2 class="snrd-title" id="snrd-heading">ออกแบบ<span>กรอบใส่โลโก้</span>ของคุณ</h2>
+      <p class="snrd-sub">เลือกรุ่น อัปโหลดโลโก้ จัดตำแหน่ง แล้วขอใบเสนอราคาได้ทันที</p>
+    </div>
+
+    <!-- 1. เลือกรุ่น -->
+    <div class="snrd-step">
+      <label class="snrd-label" for="snrd-model"><span class="snrd-num">1</span>เลือกรุ่นกรอบ</label>
+      <select class="snrd-select" id="snrd-model"></select>
+      <div class="snrd-thumbs" id="snrd-thumbs" role="group" aria-label="รูปย่อรุ่นกรอบ"></div>
+    </div>
+
+    <!-- 2. อัปโหลดโลโก้ -->
+    <div class="snrd-step snrd-upload">
+      <span class="snrd-label"><span class="snrd-num">2</span>อัปโหลดโลโก้</span>
+      <input type="file" id="snrd-logo-input" accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml">
+      <button type="button" class="snrd-btn snrd-btn-outline snrd-block" id="snrd-logo-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg>
+        เลือกไฟล์โลโก้ (PNG / JPG / SVG)
+      </button>
+      <span class="snrd-filename" id="snrd-filename">ยังไม่ได้เลือกไฟล์</span>
+    </div>
+
+    <!-- 4. Canvas แสดงผล -->
+    <div class="snrd-step">
+      <div class="snrd-stage">
+        <canvas id="snrd-canvas" width="1200" height="600" tabindex="0"
+          role="img" aria-label="ภาพตัวอย่างกรอบป้ายพร้อมโลโก้ ลากเพื่อย้ายโลโก้ หรือใช้ปุ่มลูกศรบนคีย์บอร์ด"></canvas>
+      </div>
+      <p class="snrd-caption">ภาพตัวอย่างเพื่อจัดวางเบื้องต้น ทีมงานจะปรับให้เหมาะกับการสกรีนจริง</p>
+      <p class="snrd-alert snrd-note" id="snrd-lowres" hidden>โลโก้ไฟล์นี้ความละเอียดค่อนข้างต่ำ ใช้จัดวางได้ตามปกติ ทีมงานจะติดต่อขอไฟล์ที่คมชัดขึ้นหากจำเป็น</p>
+    </div>
+
+    <!-- 3. ปรับแต่งโลโก้ -->
+    <div class="snrd-step">
+      <span class="snrd-label"><span class="snrd-num">3</span>จัดตำแหน่ง &amp; ขนาด</span>
+      <div class="snrd-controls" id="snrd-controls" aria-disabled="true">
+        <div class="snrd-pad" role="group" aria-label="ปุ่มเลื่อนโลโก้">
+          <button type="button" class="snrd-up" data-move="0,-1" aria-label="เลื่อนขึ้น"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg></button>
+          <button type="button" class="snrd-left" data-move="-1,0" aria-label="เลื่อนซ้าย"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
+          <button type="button" class="snrd-center" data-center aria-label="จัดกึ่งกลางแนวนอน"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18"/><rect x="7" y="8" width="10" height="8" rx="1.5"/></svg></button>
+          <button type="button" class="snrd-right" data-move="1,0" aria-label="เลื่อนขวา"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+          <button type="button" class="snrd-down" data-move="0,1" aria-label="เลื่อนลง"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+        <div class="snrd-size">
+          <div class="snrd-size-row"><label for="snrd-size">ขนาดโลโก้</label><output id="snrd-size-out" for="snrd-size">30%</output></div>
+          <input type="range" class="snrd-range" id="snrd-size" min="5" max="95" step="1" value="30">
+          <span class="snrd-caption">ลากโลโก้บนภาพเพื่อย้าย · สัดส่วนโลโก้ล็อกไว้เสมอ</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. ส่งแบบ -->
+    <div class="snrd-actions">
+      <p class="snrd-alert" id="snrd-need-logo" role="alert" hidden>กรุณาอัปโหลดโลโก้ก่อน แล้วจึงกด “ใช้แบบนี้ ขอใบเสนอราคา”</p>
+      <button type="button" class="snrd-btn snrd-btn-primary snrd-block" id="snrd-use">ใช้แบบนี้ ขอใบเสนอราคา</button>
+      <button type="button" class="snrd-btn snrd-btn-ghost snrd-block" id="snrd-download">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="m6 10 6 6 6-6"/><path d="M4 20h16"/></svg>
+        ดาวน์โหลดรูปแบบที่ออกแบบ
+      </button>
+      <button type="button" class="snrd-link" id="snrd-team">ไม่สะดวกออกแบบเอง ให้ทีมออกแบบให้</button>
+    </div>
+  </aside>
+
+  <!-- ================= ข้อมูลสินค้าเดิม (คอลัมน์ขวา 2/3) ================= -->
+  <div class="snrd-product-info">
+    <!-- ↓↓↓ วางเนื้อหาข้อมูลสินค้าเดิมของเว็บไว้ตรงนี้ทั้งหมด (ห้ามลบ) ↓↓↓ -->
+    <article class="demo-product">
+      <div class="demo-ph">ตำแหน่งนี้คือ “ข้อมูลสินค้าเดิม” ของหน้าเว็บ — เมื่อรวมไฟล์ ให้ใช้เนื้อหาเดิมแทนกล่องตัวอย่างนี้</div>
+      <h1>กรอบป้ายทะเบียนรถยนต์ สกรีนโลโก้ร้าน</h1>
+      <p>กรอบป้ายสำหรับโชว์รูม อู่ และร้านประดับยนต์ สกรีนโลโก้ร้านของคุณได้</p>
+      <div class="price">[ราคา]</div>
+      <ul>
+        <li>[รายละเอียดวัสดุ]</li>
+        <li>[ขนาด]</li>
+        <li>[จำนวนสั่งขั้นต่ำ]</li>
+      </ul>
+    </article>
+    <!-- ↑↑↑ จบข้อมูลสินค้าเดิม ↑↑↑ -->
+  </div>
+</div>
+<!-- ===== SNR DESIGNER LAYOUT END ===== -->
+
+<!-- ===== SNR QUOTE FORM START ===== -->
+<section id="snrd-quote" class="snrd-scope" aria-labelledby="snrd-quote-heading">
+  <div class="snrd-card">
+    <h2 id="snrd-quote-heading">ขอ<span>ใบเสนอราคา</span></h2>
+    <p class="snrd-sub snrd-only-design">กรอกข้อมูลด้านล่าง แล้วเลือกช่องทางส่งที่สะดวก</p>
+    <p class="snrd-sub snrd-only-team">แนบโลโก้และบอกโจทย์ได้เลย ทีม SNR จะออกแบบให้และส่งตัวอย่างกลับไป
+      — <button type="button" class="snrd-link" id="snrd-back-tool" style="min-height:0;padding:0">กลับไปออกแบบเอง</button></p>
+
+    <!--
+      Netlify Forms: ฟอร์มนี้ต้องอยู่ใน HTML ตอน deploy (Netlify จะสแกนเจอเอง)
+      ชื่อฟอร์ม = snr-quote-design  → ดูข้อมูลที่ส่งเข้ามาได้ที่ Netlify > Forms
+      ตั้งให้ส่งอีเมลแจ้งเตือนได้ที่ Netlify > Site settings > Forms > Form notifications
+    -->
+    <form id="snrd-form" name="snr-quote-design" method="POST" action="/" data-netlify="true"
+          netlify-honeypot="bot-field" enctype="multipart/form-data" novalidate>
+      <input type="hidden" name="form-name" value="snr-quote-design">
+      <input type="hidden" name="request-type" id="snrd-request-type" value="ออกแบบเองด้วยเครื่องมือ">
+      <p class="snrd-hp"><label>อย่ากรอกช่องนี้ <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
+
+      <div class="snrd-grid">
+        <div class="snrd-field">
+          <label for="snrd-f-model">รุ่นที่เลือก</label>
+          <input class="snrd-input" id="snrd-f-model" name="model" type="text" placeholder="เลือกจากเครื่องมือออกแบบ">
+        </div>
+        <div class="snrd-field">
+          <label for="snrd-f-qty">จำนวน (ชิ้น) <span class="snrd-req">*</span></label>
+          <input class="snrd-input" id="snrd-f-qty" name="quantity" type="number" inputmode="numeric" min="1" step="1" required placeholder="เช่น 100">
+        </div>
+        <div class="snrd-field">
+          <label for="snrd-f-haslogo">ใส่โลโก้ไหม</label>
+          <select class="snrd-select" id="snrd-f-haslogo" name="has-logo">
+            <option value="ไม่ใส่โลโก้">ไม่ใส่โลโก้</option>
+            <option value="ใส่โลโก้ (ออกแบบเองแล้ว)">ใส่โลโก้ (ออกแบบเองแล้ว)</option>
+            <option value="ใส่โลโก้ (ให้ทีม SNR ออกแบบให้)">ใส่โลโก้ (ให้ทีม SNR ออกแบบให้)</option>
+          </select>
+        </div>
+        <div class="snrd-field">
+          <label for="snrd-f-shop">ชื่อร้าน <span class="snrd-req">*</span></label>
+          <input class="snrd-input" id="snrd-f-shop" name="shop-name" type="text" autocomplete="organization" required>
+        </div>
+        <div class="snrd-field">
+          <label for="snrd-f-phone">เบอร์โทร <span class="snrd-req">*</span></label>
+          <input class="snrd-input" id="snrd-f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="08x-xxx-xxxx">
+        </div>
+        <div class="snrd-field">
+          <label for="snrd-f-line">LINE ID</label>
+          <input class="snrd-input" id="snrd-f-line" name="line-id" type="text" autocomplete="off">
+        </div>
+        <div class="snrd-field snrd-full">
+          <label for="snrd-f-email">อีเมล</label>
+          <input class="snrd-input" id="snrd-f-email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
+        </div>
+
+        <!-- แนบรูปที่ออกแบบ (ไฟล์ PNG จากเครื่องมือ) -->
+        <div class="snrd-field snrd-full snrd-only-design">
+          <span class="snrd-flabel">รูปแบบที่ออกแบบ</span>
+          <div class="snrd-attach">
+            <img id="snrd-attach-img" alt="ภาพย่อแบบกรอบที่ออกแบบ" hidden>
+            <div class="snrd-attach-text">
+              <span id="snrd-attach-status">ยังไม่มีรูปแนบ — ออกแบบด้านบนแล้วกด “ใช้แบบนี้ ขอใบเสนอราคา”</span>
+              <input class="snrd-file-native" id="snrd-design-file" name="design-image" type="file" accept="image/png">
+            </div>
+          </div>
+        </div>
+
+        <!-- โหมด "ให้ทีมออกแบบให้" -->
+        <div class="snrd-field snrd-full">
+          <label for="snrd-logo-file">ไฟล์โลโก้ต้นฉบับ <span class="snrd-only-design" style="font-weight:400;color:var(--snrd-muted)">(แนบให้อัตโนมัติเมื่ออัปโหลดในเครื่องมือ)</span></label>
+          <input class="snrd-file-native" id="snrd-logo-file" name="logo-file" type="file" accept=".png,.jpg,.jpeg,.svg,.ai,.pdf,image/*">
+        </div>
+        <div class="snrd-field snrd-full">
+          <label for="snrd-f-note"><span class="snrd-only-team">โจทย์ / สิ่งที่อยากได้</span><span class="snrd-only-design">หมายเหตุเพิ่มเติม</span></label>
+          <textarea class="snrd-textarea" id="snrd-f-note" name="note" placeholder="เช่น อยากให้โลโก้อยู่ด้านล่าง ตัวหนังสือสีขาว ใส่เบอร์โทรร้านด้วย"></textarea>
+        </div>
+      </div>
+
+      <div class="snrd-send">
+        <button type="submit" class="snrd-btn snrd-btn-primary" id="snrd-send-email">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+          ส่งทางอีเมล
+        </button>
+        <button type="button" class="snrd-btn snrd-btn-line" id="snrd-send-line">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5c0 4.1-4 7.5-9 7.5-1 0-2-.1-2.9-.4L5 20l1-3.3C4.2 15.3 3 13.5 3 11.5 3 7.4 7 4 12 4s9 3.4 9 7.5Z"/></svg>
+          ติดต่อทาง LINE (@snr333)
+        </button>
+      </div>
+
+      <div class="snrd-status" id="snrd-status" role="status" aria-live="polite"></div>
+
+      <div class="snrd-alert snrd-note snrd-line-box" id="snrd-line-box" hidden>
+        <strong>เปิด LINE แล้ว — ข้อความถูกกรอกให้อัตโนมัติ</strong>
+        <span>LINE แนบรูปอัตโนมัติไม่ได้ <b>โหลดรูปแบบที่ออกแบบแล้วแนบใน LINE ได้เลย</b></span>
+        <div class="snrd-line-btns">
+          <button type="button" class="snrd-btn snrd-btn-primary" id="snrd-line-download">ดาวน์โหลดรูปแบบที่ออกแบบ</button>
+          <a class="snrd-btn snrd-btn-line" id="snrd-line-again" href="https://line.me/R/ti/p/@snr333" target="_blank" rel="noopener">เปิด LINE อีกครั้ง</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>
+<!-- ===== SNR QUOTE FORM END ===== -->
+
+<!-- ===== SNR DESIGNER DATA START =====
+  รายการรุ่นกรอบ — แก้ไขตรงนี้ให้ตรงกับสินค้าจริง
+  - name : ชื่อรุ่น (แสดงในดรอปดาวน์และส่งไปกับฟอร์ม)
+  - img  : URL รูปกรอบ (แนะนำ PNG พื้นหลังโปร่งใส/สีขาว ถ่ายตรง ไม่เอียง, อัตราส่วนประมาณ 2:1)
+           ปล่อยว่าง "" = ใช้ภาพ placeholder ที่วาดอัตโนมัติ
+           TODO(เจ้าของเว็บ): ใส่รูปจริงของแต่ละรุ่นแทน "" — รูปต้องอยู่โดเมนเดียวกับเว็บ
+           (เช่น /images/frames/xxx.png) ไม่งั้นปุ่มดาวน์โหลด/ส่งรูปจะใช้ไม่ได้ (canvas tainted)
+  - logo : ตำแหน่งเริ่มต้นของโลโก้ (สัดส่วน 0–1 ของภาพ) x,y = จุดกึ่งกลาง, w = ความกว้าง
+  - style: แบบของ placeholder ("dark" | "chrome" | "slim") ใช้เฉพาะตอนยังไม่มีรูปจริง
+  นอกจากนี้ ถ้าในหน้าสินค้ามี element ที่ใส่ data-snr-model="ชื่อรุ่น" (และ data-snr-frame-img="url")
+  เครื่องมือจะอ่านไปเพิ่มเป็นรุ่นให้อัตโนมัติ
+-->
+<script type="application/json" id="snrd-models">
+[
+  { "id": "standard", "name": "รุ่นมาตรฐาน (กันน้ำ)",  "img": "", "style": "dark",   "logo": { "x": 0.5, "y": 0.865, "w": 0.32 } },
+  { "id": "chrome",   "name": "รุ่นโครเมียม",           "img": "", "style": "chrome", "logo": { "x": 0.5, "y": 0.865, "w": 0.32 } },
+  { "id": "slim",     "name": "รุ่นสลิม ขอบบาง",        "img": "", "style": "slim",   "logo": { "x": 0.5, "y": 0.85,  "w": 0.28 } }
+]
+</script>
+<!-- ===== SNR DESIGNER DATA END ===== -->
+
+<!-- ===== SNR DESIGNER JS START ===== -->
+<script>
+(function () {
+  'use strict';
+  var tool = document.getElementById('snr-designer');
+  var form = document.getElementById('snrd-form');
+  if (!tool || !form) return;
+
+  var LINE_OA = '@snr333';
+  var W = 1200, H = 600;            // ขนาดภาพจริงของ canvas (ส่งออกเป็น PNG ขนาดนี้)
+  var STEP = 8;                     // ระยะเลื่อนต่อการกดปุ่มลูกศร (px ของ canvas)
+
+  function $(id) { return document.getElementById(id); }
+  var cv = $('snrd-canvas'), ctx = cv.getContext('2d');
+  var selModel = $('snrd-model'), thumbs = $('snrd-thumbs');
+  var logoInput = $('snrd-logo-input'), sizeInput = $('snrd-size'), sizeOut = $('snrd-size-out');
+  var controls = $('snrd-controls'), needLogo = $('snrd-need-logo'), lowres = $('snrd-lowres');
+  var quote = $('snrd-quote');
+
+  /* ---------- โหลดรายการรุ่น ---------- */
+  var models = [];
+  try { models = JSON.parse($('snrd-models').textContent) || []; } catch (e) { models = []; }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-snr-model]'), function (el) {
+    var name = el.getAttribute('data-snr-model');
+    if (!name || models.some(function (m) { return m.name === name; })) return;
+    models.push({ id: 'page-' + models.length, name: name, img: el.getAttribute('data-snr-frame-img') || '', style: 'dark' });
+  });
+  if (!models.length) models.push({ id: 'default', name: 'กรอบป้ายมาตรฐาน', img: '', style: 'dark' });
+  models.forEach(function (m) { m.logo = m.logo || { x: 0.5, y: 0.865, w: 0.32 }; });
+
+  var state = {
+    model: models[0],
+    frame: null,        // Image ของรุ่นที่เลือก (null = placeholder)
+    logo: null,         // Image โลโก้
+    logoFile: null,
+    x: 0, y: 0, w: 0,   // ตำแหน่งกึ่งกลาง + ความกว้างโลโก้ (px ของ canvas)
+    design: null        // dataURL ของแบบล่าสุดที่กด "ใช้แบบนี้"
+  };
+
+  /* ---------- ภาพ placeholder ของกรอบ (วาดเอง ไม่ต้องใช้ไฟล์) ---------- */
+  function rr(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+  }
+  function drawPlaceholder(c, style, cw, ch) {
+    var s = cw / W;
+    c.save(); c.scale(s, s);
+    c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, W, H);
+    var slim = style === 'slim';
+    var g = c.createLinearGradient(0, 30, 0, 570);
+    if (style === 'chrome') { g.addColorStop(0, '#F2F2F2'); g.addColorStop(.45, '#9EA3A8'); g.addColorStop(.55, '#C9CDD1'); g.addColorStop(1, '#6E7377'); }
+    else { g.addColorStop(0, '#3A3A3C'); g.addColorStop(1, '#121213'); }
+    c.fillStyle = g;
+    rr(c, 40, 30, 1120, 540, slim ? 26 : 44); c.fill();
+    // ช่องป้ายทะเบียน
+    var px = slim ? 72 : 96, py = slim ? 58 : 70, pw = W - px * 2, ph = slim ? 380 : 360;
+    c.fillStyle = '#FFFFFF'; rr(c, px, py, pw, ph, 14); c.fill();
+    c.strokeStyle = '#D8D8D8'; c.lineWidth = 4; rr(c, px + 10, py + 10, pw - 20, ph - 20, 10); c.stroke();
+    c.fillStyle = '#CFCFCF'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = '700 120px Tahoma, sans-serif'; c.fillText('กข 1234', W / 2, py + ph * 0.44);
+    c.font = '500 46px Tahoma, sans-serif'; c.fillText('กรุงเทพมหานคร', W / 2, py + ph * 0.8);
+    // รูยึด
+    c.fillStyle = style === 'chrome' ? '#5B5F63' : '#000';
+    [[px + 40, py + 30], [W - px - 40, py + 30]].forEach(function (p) { c.beginPath(); c.arc(p[0], p[1], 9, 0, Math.PI * 2); c.fill(); });
+    // ป้ายบอกว่าเป็นรูปตัวอย่าง
+    c.font = '500 22px Tahoma, sans-serif'; c.textAlign = 'left';
+    c.fillStyle = style === 'chrome' ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.55)';
+    c.fillText('ภาพจำลอง (รอรูปจริง)', 64, 52 + (slim ? 0 : 0) - 4);
+    c.restore();
+  }
+
+  /* ---------- วาด canvas ---------- */
+  function draw(target, withGuide) {
+    var c = target || ctx;
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, W, H);
+    var f = state.frame;
+    if (f && f.naturalWidth) {
+      var r = Math.min(W / f.naturalWidth, H / f.naturalHeight);
+      var fw = f.naturalWidth * r, fh = f.naturalHeight * r;
+      c.drawImage(f, (W - fw) / 2, (H - fh) / 2, fw, fh);
+    } else {
+      drawPlaceholder(c, state.model.style, W, H);
+    }
+    if (state.logo) {
+      var b = logoBox();
+      c.drawImage(state.logo, b.x, b.y, b.w, b.h);
+      if (withGuide) {
+        c.save(); c.setLineDash([10, 8]); c.lineWidth = 3; c.strokeStyle = '#E2001A';
+        c.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12); c.restore();
+      }
+    }
+  }
+  function render() { draw(ctx, true); }
+
+  function logoRatio() {
+    var l = state.logo;
+    if (!l) return 1;
+    var nw = l.naturalWidth || l.width, nh = l.naturalHeight || l.height;
+    return nw && nh ? nh / nw : 0.5;           // SVG ที่ไม่มีขนาด → สมมติ 2:1
+  }
+  function logoBox() {
+    var h = state.w * logoRatio();
+    return { x: state.x - state.w / 2, y: state.y - h / 2, w: state.w, h: h };
+  }
+
+  /* ---------- รุ่นกรอบ ---------- */
+  models.forEach(function (m, i) {
+    var o = document.createElement('option');
+    o.value = String(i); o.textContent = m.name; selModel.appendChild(o);
+
+    var bt = document.createElement('button');
+    bt.type = 'button'; bt.className = 'snrd-thumb'; bt.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+    bt.setAttribute('data-index', String(i));
+    var tc = document.createElement('canvas'); tc.width = 160; tc.height = 80; tc.setAttribute('aria-hidden', 'true');
+    var tctx = tc.getContext('2d');
+    drawPlaceholder(tctx, m.style, 160, 80);
+    if (m.img) {
+      var ti = new Image();
+      ti.onload = function () {
+        tctx.fillStyle = '#fff'; tctx.fillRect(0, 0, 160, 80);
+        var r = Math.min(160 / ti.naturalWidth, 80 / ti.naturalHeight);
+        tctx.drawImage(ti, (160 - ti.naturalWidth * r) / 2, (80 - ti.naturalHeight * r) / 2, ti.naturalWidth * r, ti.naturalHeight * r);
+      };
+      ti.src = m.img;
+    }
+    var sp = document.createElement('span'); sp.textContent = m.name;
+    bt.appendChild(tc); bt.appendChild(sp);
+    bt.addEventListener('click', function () { selectModel(i); });
+    thumbs.appendChild(bt);
+  });
+
+  function selectModel(i) {
+    var m = models[i]; if (!m) return;
+    state.model = m; state.frame = null; state.design = null;
+    selModel.value = String(i);
+    Array.prototype.forEach.call(thumbs.children, function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-index') === String(i) ? 'true' : 'false');
+    });
+    $('snrd-f-model').value = m.name;
+    render();
+    if (m.img) {
+      var img = new Image();
+      if (/^https?:/i.test(m.img) && m.img.indexOf(location.origin) !== 0) img.crossOrigin = 'anonymous';
+      img.onload = function () { if (state.model === m) { state.frame = img; render(); } };
+      img.onerror = function () { if (state.model === m) { state.frame = null; render(); } };  // ใช้ placeholder แทน
+      img.src = m.img;
+    }
+  }
+  selModel.addEventListener('change', function () { selectModel(parseInt(selModel.value, 10) || 0); });
+
+  /* ---------- อัปโหลดโลโก้ ---------- */
+  $('snrd-logo-btn').addEventListener('click', function () { logoInput.click(); });
+  logoInput.addEventListener('change', function () {
+    var file = logoInput.files && logoInput.files[0];
+    if (!file) return;
+    if (!/\.(png|jpe?g|svg)$/i.test(file.name) && !/^image\/(png|jpeg|svg\+xml)$/.test(file.type)) {
+      $('snrd-filename').textContent = 'รองรับเฉพาะไฟล์ PNG, JPG หรือ SVG';
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var first = !state.logo;
+        state.logo = img; state.logoFile = file; state.design = null;
+        if (first) {
+          var m = state.model.logo;
+          state.x = m.x * W; state.y = m.y * H; state.w = m.w * W;
+          var maxH = H * 0.16;                       // ไม่ให้โลโก้ทรงสูงล้นแถบล่าง
+          if (state.w * logoRatio() > maxH) state.w = maxH / logoRatio();
+        }
+        syncSize();
+        $('snrd-filename').textContent = file.name;
+        controls.setAttribute('aria-disabled', 'false');
+        cv.classList.add('snrd-has-logo');
+        needLogo.hidden = true;
+        var nw = img.naturalWidth || 0;
+        lowres.hidden = !(nw && nw < 300 && !/svg/i.test(file.type));
+        setFileInput($('snrd-logo-file'), file);
+        $('snrd-f-haslogo').value = 'ใส่โลโก้ (ออกแบบเองแล้ว)';
+        render();
+      };
+      img.onerror = function () { $('snrd-filename').textContent = 'อ่านไฟล์นี้ไม่ได้ ลองไฟล์อื่น'; };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  /* ---------- ขนาด (slider) ---------- */
+  function syncSize() {
+    var pct = Math.round(state.w / W * 100);
+    sizeInput.value = String(Math.max(5, Math.min(95, pct)));
+    sizeOut.textContent = sizeInput.value + '%';
+  }
+  sizeInput.addEventListener('input', function () {
+    if (!state.logo) return;
+    state.w = W * parseInt(sizeInput.value, 10) / 100;   // ความสูงคำนวณจากสัดส่วนเดิมเสมอ
+    sizeOut.textContent = sizeInput.value + '%';
+    state.design = null; render();
+  });
+
+  /* ---------- ย้าย: ลากด้วยเมาส์/นิ้ว (Pointer Events) ---------- */
+  var drag = null;
+  function toCanvas(e) {
+    var r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+  }
+  function hit(p) {
+    if (!state.logo) return false;
+    var b = logoBox(), pad = 24;
+    return p.x >= b.x - pad && p.x <= b.x + b.w + pad && p.y >= b.y - pad && p.y <= b.y + b.h + pad;
+  }
+  function moveTo(x, y) {
+    var b = logoBox();
+    state.x = Math.max(-b.w / 2 + 20, Math.min(W + b.w / 2 - 20, x));
+    state.y = Math.max(-b.h / 2 + 20, Math.min(H + b.h / 2 - 20, y));
+    state.design = null; render();
+  }
+  cv.addEventListener('pointerdown', function (e) {
+    if (!state.logo) return;
+    var p = toCanvas(e);
+    if (!hit(p) && e.pointerType === 'mouse') return;
+    // บนจอสัมผัส แตะตรงไหนก็ลากโลโก้ได้ (เป้าเล็ก แตะยาก)
+    drag = { id: e.pointerId, dx: state.x - p.x, dy: state.y - p.y };
+    if (!hit(p)) { drag.dx = 0; drag.dy = 0; moveTo(p.x, p.y); }
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    cv.classList.add('snrd-dragging');
+    e.preventDefault();
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (drag && e.pointerId === drag.id) {
+      var p = toCanvas(e); moveTo(p.x + drag.dx, p.y + drag.dy); e.preventDefault();
+    } else if (e.pointerType === 'mouse' && state.logo) {
+      cv.style.cursor = hit(toCanvas(e)) ? 'grab' : 'default';
+    }
+  });
+  function endDrag(e) {
+    if (drag && (!e || e.pointerId === drag.id)) { drag = null; cv.classList.remove('snrd-dragging'); }
+  }
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('lostpointercapture', endDrag);
+  // คีย์บอร์ด (เฉพาะตอนโฟกัสที่ canvas)
+  cv.addEventListener('keydown', function (e) {
+    if (!state.logo) return;
+    var d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!d) return;
+    var k = e.shiftKey ? STEP * 4 : STEP;
+    moveTo(state.x + d[0] * k, state.y + d[1] * k); e.preventDefault();
+  });
+
+  /* ---------- ปุ่มลูกศรสำรอง (กดค้างเพื่อเลื่อนต่อเนื่อง) ---------- */
+  Array.prototype.forEach.call(tool.querySelectorAll('[data-move]'), function (btn) {
+    var d = btn.getAttribute('data-move').split(',').map(Number), t1 = null, t2 = null;
+    function nudge() { if (state.logo) moveTo(state.x + d[0] * STEP, state.y + d[1] * STEP); }
+    function stop() { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; }
+    btn.addEventListener('pointerdown', function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault(); nudge(); stop();
+      t1 = setTimeout(function () { t2 = setInterval(nudge, 45); }, 350);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) { btn.addEventListener(ev, stop); });
+    btn.addEventListener('click', function (e) { if (e.detail === 0) nudge(); });   // กดด้วยคีย์บอร์ด
+    btn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  });
+  tool.querySelector('[data-center]').addEventListener('click', function () {
+    if (state.logo) moveTo(W / 2, state.y);
+  });
+
+  /* ---------- ส่งออกภาพ ---------- */
+  function exportPNG() {
+    var out = document.createElement('canvas'); out.width = W; out.height = H;
+    draw(out.getContext('2d'), false);                 // ไม่มีเส้นประนำสายตา
+    try { return { url: out.toDataURL('image/png'), canvas: out }; }
+    catch (err) {
+      alert('ไม่สามารถสร้างรูปได้ เพราะรูปกรอบมาจากโดเมนอื่น (กรุณาแจ้งร้าน)');
+      return null;
+    }
+  }
+  function dataURLtoFile(url, name) {
+    var parts = url.split(','), bin = atob(parts[1]), n = bin.length, u8 = new Uint8Array(n);
+    while (n--) u8[n] = bin.charCodeAt(n);
+    try { return new File([u8], name, { type: 'image/png' }); }
+    catch (e) { var b = new Blob([u8], { type: 'image/png' }); b.name = name; return b; }
+  }
+  function setFileInput(input, file) {
+    try {
+      var dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+      return input.files && input.files.length === 1;
+    } catch (e) { return false; }
+  }
+  function fileName() {
+    return 'SNR-design-' + (state.model.id || 'frame') + '-' + new Date().toISOString().slice(0, 10) + '.png';
+  }
+  function download() {
+    var url = state.design;
+    if (!url) { var ex = exportPNG(); if (!ex) return; url = ex.url; }
+    var a = document.createElement('a');
+    a.href = url; a.download = fileName();
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  $('snrd-download').addEventListener('click', download);
+  $('snrd-line-download').addEventListener('click', download);
+
+  /* ---------- "ใช้แบบนี้ ขอใบเสนอราคา" ---------- */
+  $('snrd-use').addEventListener('click', function () {
+    if (!state.logo) {
+      needLogo.hidden = false;
+      $('snrd-logo-btn').focus();
+      return;
+    }
+    var ex = exportPNG(); if (!ex) return;
+    state.design = ex.url;
+    setMode('design');
+    $('snrd-f-model').value = state.model.name;
+    $('snrd-f-haslogo').value = 'ใส่โลโก้ (ออกแบบเองแล้ว)';
+    var img = $('snrd-attach-img'); img.src = ex.url; img.hidden = false;
+    var ok = setFileInput($('snrd-design-file'), dataURLtoFile(ex.url, fileName()));
+    $('snrd-attach-status').innerHTML = ok
+      ? '<span class="snrd-attach-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>แนบรูปแบบที่ออกแบบแล้ว</span><span>รุ่น: ' + escapeHtml(state.model.name) + '</span>'
+      : 'เบราว์เซอร์นี้แนบรูปให้อัตโนมัติไม่ได้ — กด “ดาวน์โหลดรูปแบบที่ออกแบบ” แล้วเลือกไฟล์ในช่องด้านล่าง';
+    if (state.logoFile) setFileInput($('snrd-logo-file'), state.logoFile);
+    quote.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(function () { try { $('snrd-f-qty').focus({ preventScroll: true }); } catch (e) {} }, 500);
+  });
+
+  /* ---------- โหมด "ให้ทีม SNR ออกแบบให้" ---------- */
+  function setMode(mode) {
+    var team = mode === 'team';
+    quote.classList.toggle('snrd-mode-team', team);
+    $('snrd-request-type').value = team ? 'ให้ทีม SNR ออกแบบให้' : 'ออกแบบเองด้วยเครื่องมือ';
+    $('snrd-f-haslogo').value = team ? 'ใส่โลโก้ (ให้ทีม SNR ออกแบบให้)' : (state.logo ? 'ใส่โลโก้ (ออกแบบเองแล้ว)' : 'ไม่ใส่โลโก้');
+    if (team) { var d = $('snrd-design-file'); try { d.value = ''; } catch (e) {} }
+  }
+  $('snrd-team').addEventListener('click', function () {
+    setMode('team');
+    $('snrd-f-model').value = state.model.name;
+    quote.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(function () { try { $('snrd-logo-file').focus({ preventScroll: true }); } catch (e) {} }, 500);
+  });
+  $('snrd-back-tool').addEventListener('click', function () {
+    setMode('design');
+    tool.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  /* ---------- ฟอร์ม ---------- */
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+  function val(id) { return ($(id).value || '').trim(); }
+  function status(html, isError) {
+    var s = $('snrd-status');
+    s.innerHTML = html ? '<div class="snrd-alert' + (isError ? '' : ' snrd-note') + '">' + html + '</div>' : '';
+  }
+  function validate() {
+    var req = [['snrd-f-qty', 'จำนวน'], ['snrd-f-shop', 'ชื่อร้าน'], ['snrd-f-phone', 'เบอร์โทร']], miss = [];
+    req.forEach(function (r) { var el = $(r[0]); var bad = !val(r[0]) || (r[0] === 'snrd-f-qty' && !(parseInt(el.value, 10) > 0)); el.setAttribute('aria-invalid', bad ? 'true' : 'false'); if (bad) miss.push(r[1]); });
+    var em = $('snrd-f-email');
+    if (val('snrd-f-email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val('snrd-f-email'))) { miss.push('อีเมลให้ถูกต้อง'); em.setAttribute('aria-invalid', 'true'); }
+    else em.setAttribute('aria-invalid', 'false');
+    if (miss.length) {
+      status('กรุณากรอก ' + miss.join(', '), true);
+      var first = form.querySelector('[aria-invalid="true"]'); if (first) first.focus();
+      return false;
+    }
+    return true;
+  }
+
+  // a) ส่งทางอีเมล → Netlify Forms (แนบไฟล์ PNG ไปด้วย)
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!validate()) return;
+    var btn = $('snrd-send-email'); btn.disabled = true;
+    status('กำลังส่ง…');
+    var fd = new FormData(form);
+    // สำรอง: ถ้าใส่ไฟล์ลง input ไม่ได้ แต่มีแบบแล้ว ให้แนบจาก memory
+    var df = $('snrd-design-file');
+    if (state.design && !quote.classList.contains('snrd-mode-team') && !(df.files && df.files.length)) {
+      fd.set('design-image', dataURLtoFile(state.design, fileName()), fileName());
+    }
+    fetch(form.getAttribute('action') || '/', { method: 'POST', body: fd })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        status('<strong>ส่งคำขอใบเสนอราคาเรียบร้อย</strong> ทีมงาน SNR จะติดต่อกลับโดยเร็ว ขอบคุณครับ');
+        form.reset(); setMode(quote.classList.contains('snrd-mode-team') ? 'team' : 'design');
+        $('snrd-f-model').value = state.model.name;
+        $('snrd-attach-img').hidden = true;
+        $('snrd-attach-status').textContent = 'ส่งแล้ว — ออกแบบใหม่ได้จากเครื่องมือด้านบน';
+      })
+      .catch(function () {
+        status('ส่งไม่สำเร็จ กรุณาลองใหม่ หรือกด “ติดต่อทาง LINE (' + LINE_OA + ')”', true);
+      })
+      .then(function () { btn.disabled = false; });
+  });
+
+  // b) ติดต่อทาง LINE → ข้อความอย่างเดียว + แจ้งให้โหลดรูปไปแนบ
+  $('snrd-send-line').addEventListener('click', function () {
+    var team = quote.classList.contains('snrd-mode-team');
+    var lines = [
+      'สวัสดีครับ ขอใบเสนอราคากรอบป้าย (จากเว็บ กรอบป้าย.com)',
+      'รุ่น: ' + (val('snrd-f-model') || '-'),
+      'จำนวน: ' + (val('snrd-f-qty') || '-') + ' ชิ้น',
+      'โลโก้: ' + $('snrd-f-haslogo').value,
+      'ชื่อร้าน: ' + (val('snrd-f-shop') || '-'),
+      'เบอร์: ' + (val('snrd-f-phone') || '-'),
+      'LINE: ' + (val('snrd-f-line') || '-'),
+      'อีเมล: ' + (val('snrd-f-email') || '-')
+    ];
+    if (val('snrd-f-note')) lines.push((team ? 'โจทย์: ' : 'หมายเหตุ: ') + val('snrd-f-note'));
+    if (state.design && !team) lines.push('(ออกแบบไว้แล้ว จะแนบรูปแบบในแชทนี้)');
+    if (team) lines.push('(จะส่งไฟล์โลโก้ในแชทนี้)');
+    var url = 'https://line.me/R/oaMessage/' + encodeURIComponent(LINE_OA) + '/?' + encodeURIComponent(lines.join('\n'));
+    var box = $('snrd-line-box');
+    $('snrd-line-again').href = url;
+    $('snrd-line-download').hidden = team || !state.logo;
+    box.hidden = false;
+    status('');
+    window.open(url, '_blank', 'noopener');
+  });
+
+  /* ---------- เริ่มต้น ---------- */
+  selectModel(0);
+  syncSize();
+})();
+</script>
+<!-- ===== SNR DESIGNER JS END ===== -->
+</body>
+</html>
